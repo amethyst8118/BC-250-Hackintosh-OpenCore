@@ -30,7 +30,7 @@ MacOS on BC-250 via OpenCore.
 | Function       | Status       |
 |---------------|-------------|
 | CPU        | ✅ Working  |
-| VESA    | ✅ Working  |
+| MESA    | ✅ Working  |
 | USB Ports   | ✅ Working  |
 | Ethernet     | ✅ Working  |
 | GPU Acceleration | ❌ Not Working |
