@@ -1,0 +1,200 @@
+diff --git a/main.c b/main.c
+index bf2d86d..0009555 100644
+--- a/main.c
++++ b/main.c
+@@ -1,4 +1,5 @@
+ #include <efi.h>
++#include <protocol/efi-lip.h>
+ #include "smu.h"
+ #include "unlock.h"
+ #include "patches.h"
+@@ -7,84 +8,122 @@
+ #define NULL ((void *)0)
+ #endif
+ 
+-// Set to 1 to halt the system after successful warm reboot validation instead of booting OS
+-#define TEST_MODE 0
++// Determine desired cores (6 or 8).
++// 1. Check driver LoadOptions (e.g. "cores=6" or "cores=8")
++// 2. Check NVRAM boot-args (e.g. "bc250cores=6" or "bc250cores=8")
++// 3. Default to 8 cores (Option A requested for this board)
++static int get_requested_cores(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
++    int requested = 8; // Default to 8 cores
++
++    // 1. Check LoadOptions from OpenCore Drivers argument
++    EFI_GUID lip_guid = EFI_LOADED_IMAGE_PROTOCOL_GUID;
++    EFI_LOADED_IMAGE_PROTOCOL *lip = NULL;
++    if (SystemTable->BootServices->HandleProtocol(ImageHandle, &lip_guid, (VOID **)&lip) == EFI_SUCCESS && lip) {
++        if (lip->LoadOptions && lip->LoadOptionsSize > 0) {
++            CHAR16 *opt = (CHAR16 *)lip->LoadOptions;
++            UINTN len = lip->LoadOptionsSize / sizeof(CHAR16);
++            for (UINTN i = 0; i < len; i++) {
++                if (opt[i] == L'6') {
++                    requested = 6;
++                } else if (opt[i] == L'8') {
++                    requested = 8;
++                }
++            }
++        }
++    }
++
++    // 2. Check NVRAM boot-args
++    EFI_GUID apple_guid = {0x7C436110, 0xAB2A, 0x4BBB, {0xA8, 0x80, 0xFE, 0x41, 0x99, 0x5C, 0x9F, 0x82}};
++    CHAR8 boot_args[1024];
++    UINTN sz = sizeof(boot_args) - 1;
++    EFI_STATUS status = SystemTable->RuntimeServices->GetVariable(
++        L"boot-args",
++        &apple_guid,
++        NULL,
++        &sz,
++        boot_args
++    );
++    if (status == EFI_SUCCESS && sz > 0) {
++        boot_args[sz] = '\0';
++        for (UINTN i = 0; i + 12 <= sz; i++) {
++            if (boot_args[i]   == 'b' && boot_args[i+1] == 'c' &&
++                boot_args[i+2] == '2' && boot_args[i+3] == '5' &&
++                boot_args[i+4] == '0' && boot_args[i+5] == 'c' &&
++                boot_args[i+6] == 'o' && boot_args[i+7] == 'r' &&
++                boot_args[i+8] == 'e' && boot_args[i+9] == 's' &&
++                boot_args[i+10] == '=') {
++                if (boot_args[i+11] == '6') requested = 6;
++                else if (boot_args[i+11] == '8') requested = 8;
++            }
++        }
++    }
++
++    return requested;
++}
+ 
+ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
+-    // Read mask register
++    int requested = get_requested_cores(ImageHandle, SystemTable);
+     unsigned int before = smn_rd(MASK_REG);
+     unsigned char mask = before & 0xFF;
+ 
+-#if TEST_MODE
+-    print(SystemTable, L"BC-250 Core Unlocker EFI Utility\r\n");
+-    print(SystemTable, L"Current Core Mask: ");
+-    print_hex(SystemTable, mask);
+-    print(SystemTable, L"\r\n");
+-#endif
++    if (requested == 8) {
++        if (mask == 0xFF) {
++            EFI_STATUS status = unlock_smu(SystemTable);
++            if (EFI_ERROR(status)) {
++                print(SystemTable, L"BC250: Failed to unlock SMU secure access!\r\n");
++                return EFI_SUCCESS;
++            }
+ 
+-    if (mask == 0xFF) {
+-        // Cores active in hardware. Unlock SMU & apply firmware patches before OS boot.
+-        EFI_STATUS status = unlock_smu(SystemTable);
+-        if (EFI_ERROR(status)) {
+-            print(SystemTable, L"Error: Failed to unlock SMU secure access!\r\n");
+-            SystemTable->BootServices->Stall(5000000);
+-            return status;
+-        }
++            status = apply_smu_patches(SystemTable);
++            if (EFI_ERROR(status)) {
++                print(SystemTable, L"BC250: Failed to apply SMU firmware patches!\r\n");
++                return EFI_SUCCESS;
++            }
+ 
+-        status = apply_smu_patches(SystemTable);
+-        if (EFI_ERROR(status)) {
+-            print(SystemTable, L"Error: Failed to apply SMU firmware patches!\r\n");
+-            SystemTable->BootServices->Stall(5000000);
+-            return status;
+-        }
++            print(SystemTable, L"BC250: 8 cores active, SMU firmware patched.\r\n");
++            return EFI_SUCCESS;
++        } else if (mask == 0x77) {
++            print(SystemTable, L"BC250: Unlocking 8 cores (0x77 to 0xFF)...\r\n");
++            EFI_STATUS status = unlock_smu(SystemTable);
++            if (EFI_ERROR(status)) {
++                print(SystemTable, L"BC250: Failed to unlock SMU secure access!\r\n");
++                return EFI_SUCCESS;
++            }
+ 
+-#if TEST_MODE
+-        print(SystemTable, L"SMU unlocked and firmware patched! Verification successful! Halting...\r\n");
+-        while (1) {
+-            __asm__ __volatile__("hlt");
+-        }
+-#endif
+-        // Cores unlocked and SMU patched! Return EFI_SUCCESS to allow UEFI Boot Manager to proceed natively
+-        return EFI_SUCCESS;
+-    } else {
+-        // Cores not yet active (mask != 0xFF). Unlock SMU to allow SMN write, set mask to 0xFF, and warm reboot.
+-#if TEST_MODE
+-        print(SystemTable, L"Unlocking SMU to set core mask...\r\n");
+-#endif
+-        EFI_STATUS status = unlock_smu(SystemTable);
+-        if (EFI_ERROR(status)) {
+-            print(SystemTable, L"Error: Failed to unlock SMU secure access!\r\n");
+-            SystemTable->BootServices->Stall(5000000);
+-            return status;
+-        }
++            int st = smn_write32(SystemTable, SMN_CORE_MASK_ADDR, 0xFF);
++            if (st != 0x01) {
++                print(SystemTable, L"BC250: Failed to write core mask via SMN!\r\n");
++                return EFI_SUCCESS;
++            }
+ 
+-#if TEST_MODE
+-        print(SystemTable, L"Writing core mask 0xFF...\r\n");
+-#endif
+-        int st = smn_write32(SystemTable, SMN_CORE_MASK_ADDR, 0xFF);
+-        if (st != 0x01) {
+-            print(SystemTable, L"Error: Failed to write core mask via SMN write!\r\n");
+-            SystemTable->BootServices->Stall(5000000);
+-            return EFI_LOAD_ERROR;
+-        }
++            unsigned int after = smn_rd(MASK_REG);
++            if ((after & 0xFF) != 0xFF) {
++                print(SystemTable, L"BC250: Core mask write failed to take effect!\r\n");
++                return EFI_SUCCESS;
++            }
+ 
+-        unsigned int after = smn_rd(MASK_REG);
+-        if ((after & 0xFF) != 0xFF) {
+-            print(SystemTable, L"Error: Core mask write failed to take effect! Read back: ");
+-            print_hex(SystemTable, after & 0xFF);
+-            print(SystemTable, L"\r\n");
+-            SystemTable->BootServices->Stall(5000000);
+-            return EFI_LOAD_ERROR;
++            print(SystemTable, L"BC250: Warm reset for 8 cores...\r\n");
++            SystemTable->RuntimeServices->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, NULL);
++            while (1) {
++                __asm__ __volatile__("hlt");
++            }
++        } else {
++            print(SystemTable, L"BC250: Non-stock core mask detected, skipping unlock.\r\n");
++            return EFI_SUCCESS;
+         }
+-
+-#if TEST_MODE
+-        print(SystemTable, L"Core mask updated to 0xFF! Triggering warm reset...\r\n");
+-#endif
+-        // Instant warm reboot
+-        SystemTable->RuntimeServices->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, NULL);
+-
+-        while (1) {
+-            __asm__ __volatile__("hlt");
++    } else {
++        if (mask == 0xFF) {
++            print(SystemTable, L"BC250: Reverting to 6 cores (0xFF to 0x77)...\r\n");
++            EFI_STATUS status = unlock_smu(SystemTable);
++            if (!EFI_ERROR(status)) {
++                smn_write32(SystemTable, SMN_CORE_MASK_ADDR, 0x77);
++                SystemTable->RuntimeServices->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, NULL);
++                while (1) {
++                    __asm__ __volatile__("hlt");
++                }
++            }
+         }
++        print(SystemTable, L"BC250: 6 cores active.\r\n");
++        return EFI_SUCCESS;
+     }
+ }

@@ -1,54 +1,47 @@
-# BC-250-Hackintosh-OpenCore
-MacOS on BC-250 via OpenCore.
+# BC-250 Hackintosh OpenCore
 
-## <strong>🖥️ Configuration</strong>
+OpenCore EFI for the ASRock BC-250 (AMD Cyan Skillfish: Zen 2 CPU, RDNA GPU, 16 GB GDDR6). OpenCore 1.0.8,
+tested on macOS Tahoe 26.7.1.
 
-</div>
+| | |
+|---|---|
+| CPU | 8 cores / 16 threads (the two disabled cores are enabled before boot) |
+| GPU | Metal 3 with [MetalCyan](https://github.com/amethyst8118/MetalCyan) |
+| Ethernet, NVMe, USB | Working |
+| Audio | No (no HDMI/DP audio yet). Safari and the TV app need an audio device to play video |
+| Sleep | Not tested |
 
+## Before you boot
 
-</p>
-<div align="left">
-  
-| Specifications      | Details                                          |
-| :--- | :--- |
-| PC                  | AsRock AMD BC-250                |
-| Processor           | BC-250 (6-core Zen 2 based on Playstation 5 Oberon)        |
-| Memory              | 16GB GDDR6 Unified Memory                  |
-| I/O           | M.2 PCIe 2.0 x2           |
-| Graphics | Cyan Skillfish 24 CU's based on Navi 10/20 RDNA 1/2                       |
+- BIOS: set the UMA frame buffer (VRAM) to 4 GB. With 512 MB the GPU runs out of memory and the screen freezes green.
+- BIOS: disable XHCI0 and use the USB 2.0 ports.
+- Generate a MacPro7,1 serial, MLB, UUID and ROM (GenSMBIOS) and fill them in under PlatformInfo > Generic.
 
-<div/> 
+## Boot-args
 
-## <strong> 🔧 Status</strong>
+Default: `npci=0x3000`. Add `-MCOff` to boot without MetalCyan (firmware framebuffer, no acceleration).
 
-</div>
+Optional, per board (tested on one board; start lower and check temperatures):
 
+| | |
+|---|---|
+| `bc250cu=40` | Enable all 40 CUs (stock 24) |
+| `bc250gfxmhz=2000 bc250gfxmv=1080` | GPU clock and voltage (max 2000 MHz) |
+| `bc250cpumhz=4000 bc250cpuvmax=1300` | CPU boost clock and voltage ceiling (max 1325 mV) |
+| `bc250cores=6` | Keep the stock 6 cores |
 
-</p>
-<div align="left">
+## What's in it
 
-| Function       | Status       |
-|---------------|-------------|
-| CPU        | ✅ Working  |
-| MESA    | ✅ Working  |
-| USB Ports   | ✅ Working  |
-| Ethernet     | ✅ Working  |
-| GPU Acceleration | ❌ Not Working |
-| Audio | ❌ Not Working (related to GPU) |
+- `Drivers/bc250-unlock-driver.efi`: enables the two fused-off cores before macOS loads (source in
+  `src/bc250-unlock-driver`). The AMD_Vanilla core-count patches are set to 8 to match.
+- Kernel patches: AMD_Vanilla, plus one for Tahoe: `_xcpm_bootstrap` forces XCPM off (the BC-250 reports CPUID model
+  0x47, which Tahoe treats as Intel Broadwell).
+- Kexts: Lilu, VirtualSMC, MetalCyan, AMDRyzenCPUPowerManagement + SMCAMDProcessor, NVMeFix, RealtekRTL8111,
+  USBToolBox + UTBDefault, AppleMCEReporterDisabler.
 
-</div> 
-<br>
-<div align="left">
+## Credits
 
-## <strong> 📌 Notes</strong>
+Acidanthera (OpenCore, Lilu, VirtualSMC, NVMeFix), AMD-OSX (AMD_Vanilla), trulyspinach (SMCAMDProcessor), USBToolBox,
+Mieze (RealtekRTL8111), rw-r-r-0644 and Hexxeh (core unlock), ChefKiss (NootedRed, which MetalCyan is based on).
 
-</div>
-
-</p>
-<ul>
-  <li><strong>⚠️ Warning: I am not responsible for any damage done to your device</strong>.</li>
-  <li><strong>⚠️ Warning: Disable XHCI0 on BIOS and connect your peripherals on the USB 2.0 port (further improvements on this would be appreciated).</strong></li>
-  <li>⚠️ <strong>Note: GPU Acceleration is not working and probably never will. NootedRed 2.0.0 (under development) might be of some help.<strong></li>
-  <li>      Based on OpenCore 0.8.7</li>
-  
-</ul>
+Not responsible for damage to your board, especially from the overclocking options.
