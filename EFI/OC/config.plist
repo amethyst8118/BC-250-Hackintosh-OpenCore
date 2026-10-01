@@ -128,6 +128,24 @@
 			</dict>
 			<dict>
 				<key>Arch</key>
+				<string>x86_64</string>
+				<key>BundlePath</key>
+				<string>RestrictEvents.kext</string>
+				<key>Comment</key>
+				<string>CPU name</string>
+				<key>Enabled</key>
+				<true/>
+				<key>ExecutablePath</key>
+				<string>Contents/MacOS/RestrictEvents</string>
+				<key>MaxKernel</key>
+				<string></string>
+				<key>MinKernel</key>
+				<string></string>
+				<key>PlistPath</key>
+				<string>Contents/Info.plist</string>
+			</dict>
+			<dict>
+				<key>Arch</key>
 				<string>Any</string>
 				<key>BundlePath</key>
 				<string>VirtualSMC.kext</string>
@@ -339,7 +357,7 @@
 				<string>17.0.0</string>
 				<key>Replace</key>
 				<data>
-				uAgAAAAA
+				uAYAAAAA
 				</data>
 				<key>ReplaceMask</key>
 				<data>
@@ -377,7 +395,7 @@
 				<string>19.0.0</string>
 				<key>Replace</key>
 				<data>
-				uggAAAAA
+				ugYAAAAA
 				</data>
 				<key>ReplaceMask</key>
 				<data>
@@ -415,7 +433,7 @@
 				<string>21.0.0</string>
 				<key>Replace</key>
 				<data>
-				uggAAACQ
+				ugYAAACQ
 				</data>
 				<key>ReplaceMask</key>
 				<data>
@@ -452,7 +470,7 @@
 				<string>22.4.0</string>
 				<key>Replace</key>
 				<data>
-				uggAAAA=
+				ugYAAAA=
 				</data>
 				<key>ReplaceMask</key>
 				<data>
@@ -1423,7 +1441,7 @@
 			<key>HibernateSkipsPicker</key>
 			<false/>
 			<key>HideAuxiliary</key>
-			<false/>
+			<true/>
 			<key>InstanceIdentifier</key>
 			<string></string>
 			<key>LauncherOption</key>
@@ -1441,7 +1459,7 @@
 			<key>PollAppleHotKeys</key>
 			<true/>
 			<key>ShowPicker</key>
-			<true/>
+			<false/>
 			<key>TakeoffDelay</key>
 			<integer>0</integer>
 			<key>Timeout</key>
@@ -1452,7 +1470,7 @@
 			<key>AppleDebug</key>
 			<false/>
 			<key>ApplePanic</key>
-			<true/>
+			<false/>
 			<key>DisableWatchDog</key>
 			<true/>
 			<key>DisplayDelay</key>
@@ -1464,7 +1482,7 @@
 			<key>SysReport</key>
 			<false/>
 			<key>Target</key>
-			<integer>3</integer>
+			<integer>0</integer>
 		</dict>
 		<key>Entries</key>
 		<array/>
@@ -1545,6 +1563,8 @@
 			</dict>
 			<key>4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102</key>
 			<dict>
+				<key>revcpuname</key>
+				<string>AMD Cyan Skillfish</string>
 				<key>rtc-blacklist</key>
 				<data>
 				</data>
@@ -1582,6 +1602,7 @@
 			<key>4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102</key>
 			<array>
 				<string>rtc-blacklist</string>
+				<string>revcpuname</string>
 			</array>
 			<key>7C436110-AB2A-4BBB-A880-FE41995C9F82</key>
 			<array>
@@ -1746,9 +1767,9 @@
 				<key>Arguments</key>
 				<string></string>
 				<key>Comment</key>
-				<string>BC-250 Core Auto-Unlock</string>
+				<string>BC-250 8-core unlock (see README)</string>
 				<key>Enabled</key>
-				<true/>
+				<false/>
 				<key>HideVerbose</key>
 				<false/>
 				<key>LoadEarly</key>
@@ -1835,7 +1856,7 @@
 			<key>GopPassThrough</key>
 			<string>Disabled</string>
 			<key>IgnoreTextInGraphics</key>
-			<false/>
+			<true/>
 			<key>InitialMode</key>
 			<string>Auto</string>
 			<key>ProvideConsoleGop</key>
