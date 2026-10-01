@@ -18,21 +18,23 @@ OpenCore 1.0.8 RELEASE, macOS Tahoe 26.7.1, MacPro7,1 SMBIOS.
 | Audio | None. No HDMI/DP audio yet, and the board has no analog codec |
 | Video decode | Software only (VCN isn't usable on this chip) |
 | Sleep | Not tested |
-| Shutdown/restart | WindowServer panics on the way down. The next boot is fine. Not fixed yet |
 
-The boot is quiet: no OpenCore picker, no verbose text, just the Apple logo. Hold **Option** or **Esc** at power-on
-to get the picker (Recovery, Reset NVRAM).
+## Get started
 
-## BIOS
+> [!IMPORTANT]
+> This EFI is for **macOS Tahoe 26.7.1** with the **MacPro7,1** SMBIOS only. The kernel patches and MetalCyan are
+> matched to that exact build. Other macOS versions and other SMBIOS models aren't supported and may not boot.
+
+### BIOS
 
 - **UMA frame buffer size: 4 GB.** With the default 512 MB the GPU runs out of VRAM and the screen freezes green.
 - **IOMMU: Disabled.**
 - **XHCI0: Disabled.** Until the USB ports are mapped, only the other controller is used. The ports on XHCI0 stop
   working, so plug the keyboard, mouse and USB stick into the USB 2.0 ports.
 
-## Before the first boot
+### SMBIOS
 
-Generate a MacPro7,1 serial, MLB, UUID and ROM (GenSMBIOS) and put them in `PlatformInfo > Generic`. They're left
+Generate a **MacPro7,1** serial, MLB, UUID and ROM (GenSMBIOS) and put them in `PlatformInfo > Generic`. They're left
 empty here.
 
 ## Boot-args
@@ -60,9 +62,6 @@ take the setting out and power off for 10 seconds; a restart doesn't reset it.
 What this board runs, with 8 cores:
 
     npci=0x3000 bc250cu=40 bc250gfxmhz=2000 bc250gfxmv=1080 bc250cpumhz=4000 bc250cpuvmax=1300
-
-That ran 15 minutes of 12-thread SHA/AES load plus a RAM write/verify loop, peaking at 80.8 °C. A 1250 mV ceiling at
-4000 MHz was fine on 6 cores but hung within seconds on 8. Start lower than this and work up.
 
 ![AMD Power Gadget, 8 cores at 4 GHz](images/amd-power-gadget.jpg)
 
