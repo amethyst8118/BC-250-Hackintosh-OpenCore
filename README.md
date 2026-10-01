@@ -108,7 +108,15 @@ GPU-side details are in the [MetalCyan README](https://github.com/amethyst8118/M
 ## Credits
 
 Acidanthera (OpenCore, Lilu, VirtualSMC, NVMeFix, RestrictEvents), AMD-OSX (AMD_Vanilla) and laobamac (PR #215),
-trulyspinach (SMCAMDProcessor, AMD Power Gadget), USBToolBox, Mieze (RealtekRTL8111), rw-r-r-0644 and Hexxeh (core
-unlock), ChefKiss (NootedRed, which MetalCyan is based on).
+trulyspinach (SMCAMDProcessor, AMD Power Gadget), USBToolBox, Mieze (RealtekRTL8111), ChefKiss (NootedRed, which
+MetalCyan is based on).
+
+BC-250 tooling the core unlock and MetalCyan's SMU code build on:
+
+- [Hexxeh/bc250-efi-core-unlock](https://github.com/Hexxeh/bc250-efi-core-unlock): the unlock driver
+- [rw-r-r-0644/bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock) and
+  [rw-r-r-0644/bc250-smu-unlock](https://github.com/rw-r-r-0644/bc250-smu-unlock): core unlock and SMU firmware patches
+- [bc250-collective/bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc): SMU mailbox and CPU overclocking
+- [duggasco/bc250-40cu-unlock](https://github.com/duggasco/bc250-40cu-unlock): 40 CU unlock
 
 Not responsible for what happens to your board, especially with the overclocking options.
