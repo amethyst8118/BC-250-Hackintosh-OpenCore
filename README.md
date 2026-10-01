@@ -85,7 +85,7 @@ driver. Source patch and build steps are in `src/bc250-unlock-driver`.
 ## What's in it
 
 - **Kexts:** Lilu, RestrictEvents (CPU name), VirtualSMC, AMDRyzenCPUPowerManagement + SMCAMDProcessor, NVMeFix,
-  AppleMCEReporterDisabler, RealtekRTL8111, USBToolBox + UTBDefault, MetalCyan.
+  AppleMCEReporterDisabler, RealtekRTL8111, USBToolBox + UTBDefault, MetalCyan 1.0.1.
 - **Kernel patches:** AMD_Vanilla, with the 26.4+ fixes from AMD_Vanilla PR
   [#215](https://github.com/AMD-OSX/AMD_Vanilla/pull/215), plus one more for Tahoe. The BC-250 reports CPUID model
   0x47, which Tahoe takes for an Intel Broadwell and starts XCPM on; the `_xcpm_bootstrap` patch forces it off.
