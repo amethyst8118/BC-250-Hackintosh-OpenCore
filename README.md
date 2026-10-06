@@ -14,7 +14,7 @@ OpenCore 1.0.8 RELEASE, macOS Tahoe 26.7.1, MacPro7,1 SMBIOS.
 | VRAM | 4 GB (BIOS setting below) |
 | Ethernet | Works (RealtekRTL8111) |
 | NVMe | Works |
-| USB | USB 2.0 ports only. Not mapped yet, XHCI0 has to be off in the BIOS |
+| USB | USB 2.0 ports only. Not mapped yet, XHCI0 has to be off in the BIOS. See [USB](#usb) |
 | Audio | None. No HDMI/DP audio yet, and the board has no analog codec |
 | Video decode | Software only (VCN isn't usable on this chip) |
 | Sleep | Not tested |
@@ -29,8 +29,8 @@ OpenCore 1.0.8 RELEASE, macOS Tahoe 26.7.1, MacPro7,1 SMBIOS.
 
 - **UMA frame buffer size: 4 GB.** With the default 512 MB the GPU runs out of VRAM and the screen freezes green.
 - **IOMMU: Disabled.**
-- **XHCI0: Disabled.** Until the USB ports are mapped, only the other controller is used. The ports on XHCI0 stop
-  working, so plug the keyboard, mouse and USB stick into the USB 2.0 ports.
+- **XHCI0: Disabled.** The ports on XHCI0 (the USB 3.0 ports) stop working, so plug the keyboard, mouse and USB
+  stick into the USB 2.0 ports. See [USB](#usb) for trying it enabled.
 
 ### SMBIOS
 
@@ -82,6 +82,45 @@ patches back to `06` and power off once.
 The driver is [Hexxeh/bc250-efi-core-unlock](https://github.com/Hexxeh/bc250-efi-core-unlock) built as an OpenCore
 driver. Source patch and build steps are in `src/bc250-unlock-driver`.
 
+## USB
+
+The rear I/O is 4 ports (2x USB 3.0, 2x USB 2.0) with no internal headers. The FCH carries one XHCI (1022:7814 at
+00:10.0: 2 USB 2 + 2 USB 3 ports) and two EHCI (1022:7808 at 00:12.2 and 00:13.2) with OHCI companions (1022:7807 at
+00:12.0/00:13.0, 1022:7809 at 00:14.5), per the [linux-hardware.org probe](http://linux-hardware.org/?probe=1cf286ab87).
+
+`UTBDefault.kext` attaches USBToolBox to every USB controller without a map, so every port macOS can see already
+works: 4 ports never reach the 15-port limit. A map would only add connector types. The USB 3.0 ports are dead because
+XHCI0 is off in the BIOS, not because they aren't mapped.
+
+Caveat, not verified on this board: macOS dropped its OHCI driver in Ventura (EHCI stays). Full- and low-speed
+devices, which includes most 2.4 GHz mouse/keyboard receivers (12 Mbps), are handed to an OHCI companion on the EHCI
+ports and may not show up in macOS. Linux shows where a device lands: in `lsusb -t`, a receiver under `ohci-pci` at
+`12M` won't work on that port in macOS. On the XHCI ports every speed is handled by the XHCI itself.
+
+The BC-250 doesn't boot Windows, so USBToolBox's recommended Windows route isn't available. To get the USB 3.0 ports:
+
+1. In Linux, record the baseline: `lspci -nn | grep -i usb` and `lspci -vvv -s 00:10.0` (check the MSI capability),
+   `dmesg | grep -i -E 'xhci|handoff'`, then `lsusb -t` with a USB 2 and a USB 3 device plugged into each port in
+   turn.
+2. Enable XHCI0 in the BIOS and boot macOS with `-v`.
+3. If it boots but the USB 3.0 ports stay dead, check for a failed ownership handoff: Apple's driver does the handoff
+   itself but gives the firmware only 100 ms and then gives up, unlike Linux. Look for
+   `unable to obtain controller ownership from BIOS` with
+   `log show --last boot --predicate 'process == "kernel"' | grep -i -E 'xhci|ownership'`; if it is there, set
+   `UEFI > Quirks > ReleaseUsbOwnership` to true and retry. If the message persists, also enable the disabled
+   `Kernel > Patch` entry `AppleUSBXHCI: BIOS handoff timeout 100 ms -> 1000 ms` (26.x only; it gives the firmware
+   1 s like Linux; it does not force anything, the driver still fails cleanly if the firmware never lets go).
+   It was checked against 26.7.1's AppleUSBXHCI (exactly one match).
+4. If it hangs at boot, photograph the last lines and turn XHCI0 off again.
+5. Once it works, the USB 3.0 ports already work through `UTBDefault.kext`. To map them anyway, run the macOS version
+   of the [USBToolBox tool](https://github.com/USBToolBox/tool) (its port-limit problems don't apply to 4 ports):
+   plug a USB 2 and a USB 3 device into every port, build `UTBMap.kext`, add it to `config.plist` under
+   `Kernel > Add` after `USBToolBox.kext`, and remove `UTBDefault.kext` (its entry and folder).
+6. Keep `XhciPortLimit` off. It has been broken since macOS 11.3 (per USBToolBox's README).
+
+Wireless Razer/Logitech receivers work as plain USB HID. Razer Synapse for Mac only runs on Apple silicon, so set
+DPI/RGB/macros on another PC and save them to the device's onboard memory if it has it.
+
 ## What's in it
 
 - **Kexts:** Lilu, RestrictEvents (CPU name), VirtualSMC, AMDRyzenCPUPowerManagement + SMCAMDProcessor, NVMeFix,
@@ -89,6 +128,7 @@ driver. Source patch and build steps are in `src/bc250-unlock-driver`.
 - **Kernel patches:** AMD_Vanilla, with the 26.4+ fixes from AMD_Vanilla PR
   [#215](https://github.com/AMD-OSX/AMD_Vanilla/pull/215), plus one more for Tahoe. The BC-250 reports CPUID model
   0x47, which Tahoe takes for an Intel Broadwell and starts XCPM on; the `_xcpm_bootstrap` patch forces it off.
+  Also included, disabled: an `AppleUSBXHCI` handoff-timeout patch (100 ms -> 1000 ms, 26.x only); see [USB](#usb).
 - **CPU name:** set with RestrictEvents' `revcpuname` (NVRAM `4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102`).
 - **Drivers:** OpenRuntime, HfsPlus, ResetNvramEntry, bc250-unlock-driver (disabled).
 
@@ -96,7 +136,7 @@ driver. Source patch and build steps are in `src/bc250-unlock-driver`.
 
 - **No HDMI/DP audio.** Safari and the TV app won't play video without an audio output device. A virtual one
   (BlackHole etc.) works around it.
-- **USB isn't mapped.** XHCI0 is off in the BIOS and only the USB 2.0 ports are used.
+- **USB isn't mapped.** XHCI0 is off in the BIOS and only the USB 2.0 ports are used. See [USB](#usb).
 - **Panic at shutdown/restart.** WindowServer panics while the display goes down (`IOAccelDisplayMachine::
   display_mode_did_change: AMDRadeonAccelerator driver returns false`). The next boot is fine.
 - **No GPU recovery.** If the GPU ever hangs, the screen freezes until a reboot (Navi 10's reset hangs this GPU, so it
