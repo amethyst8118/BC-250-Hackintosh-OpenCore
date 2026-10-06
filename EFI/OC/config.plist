@@ -100,7 +100,19 @@
 	<key>DeviceProperties</key>
 	<dict>
 		<key>Add</key>
-		<dict/>
+		<dict>
+			<key>#PciRoot(0x0)/Pci(0x8,0x1)/Pci(0x0,0x1)</key>
+			<dict>
+				<key>built-in</key>
+				<data>AQ==</data>
+				<key>device-id</key>
+				<data>OKsAAA==</data>
+				<key>hda-gfx</key>
+				<string>onboard-1</string>
+				<key>model</key>
+				<string>BC-250 HDMI/DP Audio</string>
+			</dict>
+		</dict>
 		<key>Delete</key>
 		<dict/>
 	</dict>

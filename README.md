@@ -15,7 +15,7 @@ OpenCore 1.0.8 RELEASE, macOS Tahoe 26.7.1, MacPro7,1 SMBIOS.
 | Ethernet | Works (RealtekRTL8111) |
 | NVMe | Works |
 | USB | USB 2.0 ports only. Not mapped yet, XHCI0 has to be off in the BIOS |
-| Audio | None. No HDMI/DP audio yet, and the board has no analog codec |
+| Audio | None yet ([HDMI/DP audio experiment](#hdmidp-audio)). The board has no analog codec |
 | Video decode | Software only (VCN isn't usable on this chip) |
 | Sleep | Not tested |
 
@@ -82,6 +82,30 @@ patches back to `06` and power off once.
 The driver is [Hexxeh/bc250-efi-core-unlock](https://github.com/Hexxeh/bc250-efi-core-unlock) built as an OpenCore
 driver. Source patch and build steps are in `src/bc250-unlock-driver`.
 
+## HDMI/DP audio
+
+Untested on the board. The GPU audio function (PCI 1002:13FF at 01:00.1) gets no driver: macOS serves GPU
+HDMI/DP audio with AppleGFXHDA, whose AMD personality matches only 0xAAF81002, 0xAAF01002, 0xABF81002,
+0xAB201002, 0xAAE01002, 0xAB381002, 0xAB281002 — not 13FF. If this ever attaches, Safari and the TV app get
+the audio device they need for video playback.
+
+The experiment: `DeviceProperties > Add` has a disabled entry for `PciRoot(0x0)/Pci(0x8,0x1)/Pci(0x0,0x1)`
+spoofing `device-id` to Navi 10's AB38 (`38AB0000`) with `hda-gfx=onboard-1` (matching what MetalCyan sets on
+the GPU) and `built-in`. To try it, remove the `#` from the device-path key and reboot; to revert, put the
+`#` back.
+
+What to check: `ioreg -l -w0 | grep -i -A6 GFXHDA` shows AppleGFXHDAEGController attached; an output appears
+in System Settings > Sound; test HDMI via adapter and DP. Watch for audio drifting out of sync on DP over
+several minutes — Linux needed a DP spread-spectrum fix for that on this chip.
+
+The spoof only gets the driver to attach. AppleGFXHDA builds its codec objects from a table that may not know this
+codec (then no output appears even though the controller is attached), and it pairs the audio with the display by
+the `HDAU` node name, which OpenCore properties can't set. If the controller attaches but nothing shows up in Sound,
+use the MetalCyan build from [MetalCyan draft PR #3](https://github.com/amethyst8118/MetalCyan/pull/3) (an
+AppleGFXHDA personality for 13FF plus NootedRed-style codec forcing and the `HDAU` rename) and keep this entry
+disabled. To report results, include `ioreg -w0 -l -c AppleGFXHDAEGController` and, from Linux,
+`cat /proc/asound/card*/codec#*`.
+
 ## What's in it
 
 - **Kexts:** Lilu, RestrictEvents (CPU name), VirtualSMC, AMDRyzenCPUPowerManagement + SMCAMDProcessor, NVMeFix,
@@ -95,7 +119,7 @@ driver. Source patch and build steps are in `src/bc250-unlock-driver`.
 ## Known issues
 
 - **No HDMI/DP audio.** Safari and the TV app won't play video without an audio output device. A virtual one
-  (BlackHole etc.) works around it.
+  (BlackHole etc.) works around it. There is a disabled [experiment](#hdmidp-audio) to try instead.
 - **USB isn't mapped.** XHCI0 is off in the BIOS and only the USB 2.0 ports are used.
 - **Panic at shutdown/restart.** WindowServer panics while the display goes down (`IOAccelDisplayMachine::
   display_mode_did_change: AMDRadeonAccelerator driver returns false`). The next boot is fine.
