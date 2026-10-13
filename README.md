@@ -14,7 +14,7 @@ OpenCore 1.0.8 RELEASE, macOS Tahoe 26.7.1, MacPro7,1 SMBIOS.
 | VRAM | 4 GB (BIOS setting below) |
 | Ethernet | Works (RealtekRTL8111) |
 | NVMe | Works |
-| USB | USB 2.0 ports only. Not mapped yet, XHCI0 has to be off in the BIOS |
+| USB | USB 3.0 ports work (AppleUSBXHCI patches below). USB 2.0 ports only for 480 Mbps devices. Not mapped yet |
 | Audio | None. No HDMI/DP audio yet, and the board has no analog codec |
 | Video decode | Software only (VCN isn't usable on this chip) |
 | Sleep | Not tested |
@@ -29,8 +29,9 @@ OpenCore 1.0.8 RELEASE, macOS Tahoe 26.7.1, MacPro7,1 SMBIOS.
 
 - **UMA frame buffer size: 4 GB.** With the default 512 MB the GPU runs out of VRAM and the screen freezes green.
 - **IOMMU: Disabled.**
-- **XHCI0: Disabled.** Until the USB ports are mapped, only the other controller is used. The ports on XHCI0 stop
-  working, so plug the keyboard, mouse and USB stick into the USB 2.0 ports.
+- **XHCI0: Enabled.** It runs the two USB 3.0 (blue) ports; plug the keyboard and mouse in there. The USB 2.0 (black)
+  ports hand 12 Mbps and slower devices (most keyboards and mice, many wireless receivers) to an OHCI controller, and
+  macOS has no OHCI driver, so those devices get power but never show up. 480 Mbps devices work on the black ports.
 
 ### SMBIOS
 
@@ -89,6 +90,11 @@ driver. Source patch and build steps are in `src/bc250-unlock-driver`.
 - **Kernel patches:** AMD_Vanilla, with the 26.4+ fixes from AMD_Vanilla PR
   [#215](https://github.com/AMD-OSX/AMD_Vanilla/pull/215), plus one more for Tahoe. The BC-250 reports CPUID model
   0x47, which Tahoe takes for an Intel Broadwell and starts XCPM on; the `_xcpm_bootstrap` patch forces it off.
+- **AppleUSBXHCI patches:** macOS puts command and port events on xHCI interrupter 0 and USB transfers on
+  interrupter 1, but only listens to one MSI vector. The BC-250's xHCI doesn't signal interrupter 1 on it, so every
+  transfer waited for the next interrupter 0 event (the 2.048 s MFINDEX wrap): keys showed up seconds late and a
+  keyboard took 15 s to appear. The seven `AppleUSBXHCI` patches set the Interrupter Target of control, bulk and
+  interrupt TRBs to 0. 26.7.1 only.
 - **CPU name:** set with RestrictEvents' `revcpuname` (NVRAM `4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102`).
 - **Drivers:** OpenRuntime, HfsPlus, ResetNvramEntry, bc250-unlock-driver (disabled).
 
@@ -96,7 +102,9 @@ driver. Source patch and build steps are in `src/bc250-unlock-driver`.
 
 - **No HDMI/DP audio.** Safari and the TV app won't play video without an audio output device. A virtual one
   (BlackHole etc.) works around it.
-- **USB isn't mapped.** XHCI0 is off in the BIOS and only the USB 2.0 ports are used.
+- **USB isn't mapped.** `UTBDefault` exposes every port; XHCI0 has 4, well under the 15-port limit.
+- **USB audio and webcams on the USB 3.0 ports** aren't covered by the patches: isochronous transfers still go to
+  interrupter 2, so expect them to be late there.
 - **Panic at shutdown/restart.** WindowServer panics while the display goes down (`IOAccelDisplayMachine::
   display_mode_did_change: AMDRadeonAccelerator driver returns false`). The next boot is fine.
 - **No GPU recovery.** If the GPU ever hangs, the screen freezes until a reboot (Navi 10's reset hangs this GPU, so it
