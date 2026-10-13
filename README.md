@@ -88,7 +88,11 @@ driver. Source patch and build steps are in `src/bc250-unlock-driver`.
   AppleMCEReporterDisabler, RealtekRTL8111, USBToolBox + UTBDefault, MetalCyan 1.0.1.
 - **Kernel patches:** AMD_Vanilla, with the 26.4+ fixes from AMD_Vanilla PR
   [#215](https://github.com/AMD-OSX/AMD_Vanilla/pull/215), plus one more for Tahoe. The BC-250 reports CPUID model
-  0x47, which Tahoe takes for an Intel Broadwell and starts XCPM on; the `_xcpm_bootstrap` patch forces it off.
+  0x47, which Tahoe takes for an Intel Broadwell and starts XCPM on; the `_xcpm_bootstrap` patch forces it off. Three
+  patches on AMDRyzenCPUPowerManagement 0.7.2 make the CPU respond faster: idle with HLT (C1) instead of the deepest
+  C-state, which emptied the caches, never step down from P0 (P1 held short bursts at 2550 MHz; the SMU still idles
+  the cores at 1400 MHz), and keep a waking thread on its own core (the kext moved it to the next idle core, often in
+  the other 4 MB L3 cluster). AMD Power Gadget's low-power switch has no effect with them.
 - **CPU name:** set with RestrictEvents' `revcpuname` (NVRAM `4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102`).
 - **Drivers:** OpenRuntime, HfsPlus, ResetNvramEntry, bc250-unlock-driver (disabled).
 
