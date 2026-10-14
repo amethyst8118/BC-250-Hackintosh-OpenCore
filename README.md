@@ -97,6 +97,9 @@ driver. Source patch and build steps are in `src/bc250-unlock-driver`.
 - **No HDMI/DP audio.** Safari and the TV app won't play video without an audio output device. A virtual one
   (BlackHole etc.) works around it.
 - **USB isn't mapped.** XHCI0 is off in the BIOS and only the USB 2.0 ports are used.
+- **USB keyboard/mouse dead after boot (rare).** The device enumerates on USB but macOS never creates a HID
+  device for it (a DriverKit HID bind stalls at boot). Replugging fixes it; `src/hid-bind-watchdog` has an
+  optional daemon that detects it and restarts the HID driver automatically.
 - **Panic at shutdown/restart.** WindowServer panics while the display goes down (`IOAccelDisplayMachine::
   display_mode_did_change: AMDRadeonAccelerator driver returns false`). The next boot is fine.
 - **No GPU recovery.** If the GPU ever hangs, the screen freezes until a reboot (Navi 10's reset hangs this GPU, so it
